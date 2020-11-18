@@ -15,7 +15,6 @@ void Snr_Wand_Parameter(void);
 void Snr_Fb_Speed(void);
 void A_Solenoid(uint8_t mode);
 void B_Solenoid(uint8_t mode);
-void Speed_Trap(uint8_t speedo);
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: run_module
 //: Prototype: void run_module(void)
@@ -298,20 +297,18 @@ void sensor_calibrate(void) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void A_Solenoid(uint8_t mode) {
-   static uint8_t cycle_counter, start_position, top_speed;
+   static uint8_t cycle_counter, start_position;
    uint8_t current_position;
    if(mode) {
       if(!(portd_shdw & (1<<_SOL_A))) { // drv A not ON yet?
-			
-			OCR1A = 128;
-			
-			
+
+			OCR1A = 160;
+
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
          output_a_on(); // solenoid A on routine
-         top_speed = cycle_counter = 0; // clear cycle counter
       } else {
          if(cycle_counter & 0x80) { // test if counter is < 128
-            output_a_off(); // turn off solenoid A
+            //output_a_off(); // turn off solenoid A
             return; // then exit routine
          }
          if(++cycle_counter == 8) { // 1 sec.
@@ -326,11 +323,6 @@ void A_Solenoid(uint8_t mode) {
                }
             }
          }
-         if(unib[SNR_FB_SPEED].byte > top_speed)
-            top_speed = unib[SNR_FB_SPEED].byte;
-         if(cycle_counter == 10) // 1.2 secs.
-            if(start_position < SNR_CENTER)
-               Speed_Trap(top_speed);
       }
    } else {
       output_a_off();
@@ -344,20 +336,18 @@ void A_Solenoid(uint8_t mode) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void B_Solenoid(uint8_t mode) {
-   static uint8_t cycle_counter, start_position, top_speed;
+   static uint8_t cycle_counter, start_position;
    uint8_t current_position;
    if(mode) {
       if(!(portd_shdw & (1<<_SOL_B))) { // drv B not ON yet?
-			
-			OCR1A = 64;
-			
-			
+
+			OCR1A = 100;
+
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
          output_b_on(); // solenoid B on routine
-         top_speed = cycle_counter = 0; // clear cycle counter
       } else {
          if(cycle_counter & 0x80) { // test if counter is < 128
-            output_b_off(); // turn off solenoid B
+            //output_b_off(); // turn off solenoid B
             return; // then exit routine
          }
          if(++cycle_counter == 8) { // 1 sec.
@@ -372,31 +362,11 @@ void B_Solenoid(uint8_t mode) {
                }
             }
          }
-         if(unib[SNR_FB_SPEED].byte > top_speed)
-            top_speed = unib[SNR_FB_SPEED].byte;
-         if(cycle_counter == 10) // 1.2 secs.
-            if(start_position > SNR_CENTER)
-               Speed_Trap(top_speed);
       }
    } else {
       output_b_off(); // solenoid B off
    }
 } // B_Solenoid
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-//: Function: Speed_Trap
-//: Prototype: void Speed_Trap(uint8_t speedo)
-//: Description: handles hydra too fast, slow flags
-//: Arg1: speed (change on feedback sensor)
-//: Returns: none
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-void Speed_Trap(uint8_t speedo) {
-   if(speedo < 5) // slow limit
-      SSW_LOW_BYTE |= (1<<HYDRL_SLOW); // set too slow flag
-   else if(speedo > 13) // fast limit
-      SSW_LOW_BYTE |= (1<<HYDRL_FAST); // set too fast flag
-   if(SSW_LOW_BYTE & ((1<<HYDRL_SLOW) | (1<<HYDRL_FAST))) // test if motion flag should be set
-      SET_HYDRL_SPD;
-} // Speed_Trap
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: output_a_on
 //: Prototype: void output_a_on(void)

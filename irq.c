@@ -68,10 +68,10 @@ ISR (TIMER1_COMPA_vect) {
 //: Returns: none
 //: Notes:
 //:   delay, task0, task1, sgnl_delay, comm_cab timers
+//:	timer to turn off solenoids if left on too long
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ISR (TIMER1_COMPB_vect) {
    static uint8_t portd_image, j;
-   //TCNT2 = 0xB2; // Oxb2
    if(TST_DELAY) // delay bit high?
       if(!(--tmr1.delay)) // is equal?
          CLR_DELAY; // lower flag
@@ -115,18 +115,6 @@ ISR (TIMER1_COMPB_vect) {
 		   output_x_off(); // turn both solenoids off
 	   }
    }
-/******************* COULD BE DELETED************************
-   // minute and hour timer for total run time of equipment
-   if(PORTD & 0xC3) {
-	   if(++second_timer > 199) { // add one then compare (100 laps = 1 second)
-		   second_timer = 0; // clear second timer register
-		   uniw[TIME_SECS].word += 2;
-		   if(uniw[TIME_SECS].word > 3599) { //
-			   uniw[TIME_SECS].word = 0;
-			   ++uniw[TIME_HRS].word;
-		   }
-	   }
-   } */
 } // SIGNAL(SIG_OUTPUT_COMPARE1B) [interrupt]
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: SIG_COMPARATOR
