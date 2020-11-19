@@ -28,15 +28,15 @@ int main(void) {
    while(1) {
       while(TST_COMM_CAB) { // infinite loop
          wdr(); // clear watchdog timer
-         if(unib[FLG_DIAG].byte & 0x0F) { // test diagnostics flags
+         if (unib[FLG_DIAG].byte & 0x0F) { // test diagnostics flags
             diag_flags(unib[FLG_DIAG].byte); // run diagnostics functions
-         } else if(TST_SNR_CALI) { // test calibration mode flags
+         } else if (TST_SNR_CALI) { // test calibration mode flags
             sensor_calibrate(); // do sensor calibrate function
-         } else if(TST_GUIDANCE) { // test guidance requested flag
+         } else if (TST_GUIDANCE) { // test guidance requested flag
             run_module();// then do run module
          }
       }
-      if(!(TST_CAB_RESET)) { // test if cab was ever present or not
+      if (!(TST_CAB_RESET)) { // test if cab was ever present or not
          stand_alone(); // if not then run as stand-along
       } else {
          shut_down(); // if cab was present then goto shut_down
@@ -59,9 +59,9 @@ void debug_flasher(void) {
    uint16_t y = 0;
    FLASH_OFF;
    for(;;) {
-      if(++y > 16000) {
+      if (++y > 16000) {
          y = 0;
-         if(++x & 0x88)
+         if (++x & 0x88)
             FLASH_OFF;
          else
             FLASH_ON;
@@ -87,7 +87,7 @@ void reset(void) {
    tmr1.comm_out = 10;
    t1_task1(600);
    while(!TST_CAB_RESET)
-      if(!TST_TASK1)
+      if (!TST_TASK1)
          break;
 } // reset
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -202,7 +202,7 @@ void ini_sync(void) {
    uint8_t j=0;
    t1_task0(100); // allow 1.0 second for COMMS flag to set
    while(TST_TASK0) { // test if time is up
-      if(TST_COMMS) { // if COMMS flag is set then proceed
+      if (TST_COMMS) { // if COMMS flag is set then proceed
          for(j=SNR_POLARITY;j<=CTL_SGNL_AVERAGE;j++) {
             // send 8 bit data to cab module
             pdu1_out8((_VAR | _WRITE), j, 0xFF, unib[j].byte);
@@ -226,7 +226,7 @@ void ini_sync(void) {
 //:   is done if not needed, non-zero forces new sensor calibration parameters
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void ini_defaults(char mode) {
-   if(e2_read(E2_MCU) != 0xA5A5) { // first time on?
+   if (e2_read(E2_MCU) != 0xA5A5) { // first time on?
       e2_write(E2_HRS, 0); // clear hrs.
       e2_write(E2_SECS, 0); // clear secs.
       e2_write(E2_FDBK,50u); // feedback percentage (10=10%, 100=100%)
@@ -240,7 +240,7 @@ void ini_defaults(char mode) {
       e2_write(E2_MCU, 0xA5A5); // eeprom initilized code
       mode = 1;
    }
-   if(mode) {
+   if (mode) {
       e2_write(E2_SNR1_MIN, 312u);
       e2_write(E2_SNR1_MAX, 712u);
       e2_write(E2_SNR2_MIN, 312u);
@@ -265,7 +265,7 @@ void stand_alone(void) {
    diag_system(); // test system for low voltage, a/d converter
    diag_solenoid(); // test solenoids
    diag_sensor(); // test for sensors
-   if(!TST_FATAL_ERR) { // if no fatal errors then
+   if (!TST_FATAL_ERR) { // if no fatal errors then
       FLASH_ON; // turn on led
       _SOL_AB_ENABLE; // enable a and b outputs
       CLR_2ND_SGNL; // select priority wand
@@ -280,7 +280,7 @@ void stand_alone(void) {
       SET_SGNL_CTL; // enable wand
       while(!TST_FATAL_ERR && !TST_MOTION) { // loop forever, as it were
          run_module(); // do run module
-         if(!TST_HTC_RESET) // if cab comms requests a reset
+         if (!TST_HTC_RESET) // if cab comms requests a reset
             __asm__ volatile("jmp 0"); // psuedo reset
       }
    }
@@ -304,20 +304,20 @@ void shut_down(void) {
    e2_write(E2_HRS, uniw[TIME_HRS].word); // save runtime HRS.
    e2_write(E2_SECS, uniw[TIME_SECS].word);// save runtime SECS.
    // sensor registers
-   if((flag.min_touch ^ flag.max_touch) & (1<<AD_SNR1)) {
-      if(flag.min_touch & (1<<AD_SNR1))
+   if ((flag.min_touch ^ flag.max_touch) & (1<<AD_SNR1)) {
+      if (flag.min_touch & (1<<AD_SNR1))
          uniw[SNR_MAX + AD_SNR1].word -= 20;
       else
          uniw[SNR_MIN + AD_SNR1].word += 20;
    }
-   if((flag.min_touch ^ flag.max_touch) & (1<<AD_SNR2)) {
-      if(flag.min_touch & (1<<AD_SNR2))
+   if ((flag.min_touch ^ flag.max_touch) & (1<<AD_SNR2)) {
+      if (flag.min_touch & (1<<AD_SNR2))
          uniw[SNR_MAX + AD_SNR2].word -= 20;
       else
          uniw[SNR_MIN + AD_SNR2].word += 20;
    }
-   if((flag.min_touch ^ flag.max_touch) & (1<<AD_SNR3)) {
-      if(flag.min_touch & (1<<AD_SNR3))
+   if ((flag.min_touch ^ flag.max_touch) & (1<<AD_SNR3)) {
+      if (flag.min_touch & (1<<AD_SNR3))
          uniw[SNR_MAX + AD_SNR3].word -= 20;
       else
          uniw[SNR_MIN + AD_SNR3].word += 20;
@@ -344,9 +344,9 @@ void shut_down(void) {
       FLASHER; // toggle led fast
       t1_delay(10);
       pdu1_out8( _VAR | _WRITE, 0xAA, 0x00, flag.tmr1b);
-      if(TST_COMM_CAB) // test if cab comm are coming in
+      if (TST_COMM_CAB) // test if cab comm are coming in
          break; // if so then break out of for loop
-      if(!TST_HTC_RESET) // if cab comms request a reset
+      if (!TST_HTC_RESET) // if cab comms request a reset
          __asm__ volatile("jmp 0"); // psuedo reset
    }
 } // shut down function

@@ -58,7 +58,7 @@ void pdu1_read_var(uint8_t content, uint8_t address) {
    content &= 0x7C; // insure var is selected only
    do {
       pdu1_out16((content & _READ), address, (content | _WRITE), address);
-      if(!(content & _TOKEN)) // test if receipt is requested
+      if (!(content & _TOKEN)) // test if receipt is requested
          break;
    } while(pdu1_token());
 } // end of pdu1_read
@@ -90,10 +90,10 @@ void pdu1_out8(uint8_t content, uint8_t address, uint8_t mask, uint8_t data) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void pdu1_out16(uint8_t content, uint8_t address, uint16_t va, uint16_t vb) {
    uint8_t* buff = wr_buff[0].var8;
-   if(flag.int1) // test if called within the int1 interrupt handler
+   if (flag.int1) // test if called within the int1 interrupt handler
       buff += (sizeof(wr_buff[0])); // use buff[1] for interrupts
-   if(content & _TOKEN) // only if token is requested
-      if(!(content & _WRITE)) // only if a read operation
+   if (content & _TOKEN) // only if token is requested
+      if (!(content & _WRITE)) // only if a read operation
          flag_mcp |= _TOKEN; // set token flag
    buff[1] = 0xEF; // content byte
    buff[2] = 0x02; // set priority
@@ -124,37 +124,37 @@ void pdu1_in(void) {
    uint8_t* buff = rd_buff[0].var8;
    uint16_t tmp = 0; // temporary register
    uint8_t content;
-   if(!(buff[0])) { // test buff0 for unprocessed message
+   if (!(buff[0])) { // test buff0 for unprocessed message
       buff += sizeof(rd_buff[0]); // point to 2nd buffer
-      if(!(buff[0])) // test buff1 for unprocessed message
+      if (!(buff[0])) // test buff1 for unprocessed message
          return; // no message pending
    }
    content = (buff[CONTENT] & _DA_MASK); // get msg content
    // CAN bus watchdog timer for comms.
    // test if source is the cab module
-   if((buff[SOURCE] == CAB_MOD) && (buff[DEST] == HITCH_MOD)) {
+   if ((buff[SOURCE] == CAB_MOD) && (buff[DEST] == HITCH_MOD)) {
       t1_comm_cab(200); // reset watchdog timer (approx. 2 seconds)
-      if(buff[CONTENT] & _WRITE) { // test if write?
-         if(content == _VAR) // variable related read modify writes
+      if (buff[CONTENT] & _WRITE) { // test if write?
+         if (content == _VAR) // variable related read modify writes
              pdu1_in_var(buff);
-         else if(content == _PORT) //  port related read modify writes
+         else if (content == _PORT) //  port related read modify writes
              pdu1_in_port(buff);
-         else if(content == _E2) //  eeprom related read modify writes
+         else if (content == _E2) //  eeprom related read modify writes
              pdu1_in_ee(buff);
-         if(buff[CONTENT] & _TOKEN) // test if receipt is requested
+         if (buff[CONTENT] & _TOKEN) // test if receipt is requested
             flag_mcp &= ~_TOKEN; // reset receipt flag in flag_mcp variables
       } else { // read and WRITE to other controller
-         if(content == _VAR) { // variable related read
-            if(buff[CONTENT] & _SIZE16) {
+         if (content == _VAR) { // variable related read
+            if (buff[CONTENT] & _SIZE16) {
                tmp = uniw[buff[ADDRESS]].word;
             } else {
                tmp = unib[buff[ADDRESS]].byte;
             }
-         } else if(content == _PORT) { // port related read
+         } else if (content == _PORT) { // port related read
             tmp = *(iobase + buff[ADDRESS]);
-         } else if(content == _E2) { // eeprom related read
+         } else if (content == _E2) { // eeprom related read
             tmp = e2_read(buff[ADDRESS]); // get variable from eeprom
-         } else if(content == _AD) { // a/d converter related read
+         } else if (content == _AD) { // a/d converter related read
             tmp = ad_read(buff[ADDRESS] & 0x07); // get reading of a/d channel
          }
          pdu1_out16((buff[CONTENT2] | _WRITE), buff[ADDRESS2],
@@ -180,8 +180,8 @@ void pdu1_in_var(uint8_t* buff) {
       uint16_t word;
    } tmp;
    uint8_t address = buff[ADDRESS];
-   if(buff[CONTENT] & _SIZE16) { // if word size data
-      if(address < sizeof(uniw)) {
+   if (buff[CONTENT] & _SIZE16) { // if word size data
+      if (address < sizeof(uniw)) {
          tmp.word = uniw[address].word; // get variable word
          tmp.byte[0] &= ~buff[MASK_L]; // inverted mask low byte AND
          tmp.byte[0] |= (buff[MASK_L] & buff[DATA_L]); // get data low byte
@@ -190,7 +190,7 @@ void pdu1_in_var(uint8_t* buff) {
          uniw[address].word = tmp.word; // write to variable
       }
    } else { // byte size
-      if(address < sizeof(unib)) {
+      if (address < sizeof(unib)) {
          tmp.byte[0] = unib[address].byte; // get variable word
          tmp.byte[0] &= ~buff[MASK_L]; // inverted mask low byte AND
          tmp.byte[0] |= (buff[MASK_L] & buff[DATA_L]); // get data low byte
@@ -213,7 +213,7 @@ void pdu1_in_port(uint8_t* buff) {
    uint8_t * const iobase = (uint8_t*)0x00;
    uint8_t address;
    address = buff[ADDRESS]; // get address of port
-   if(address < 0x5D) { // exclude SREG and Stack Pointer Registers
+   if (address < 0x5D) { // exclude SREG and Stack Pointer Registers
       tmp = *(iobase + address); // read i/o space
       tmp &= ~buff[MASK_L]; // inverted mask low byte AND
       tmp |= (buff[MASK_L] & buff[DATA_L]); // get data low byte
@@ -251,10 +251,10 @@ void pdu1_in_ee(uint8_t* buff) {
 uint8_t pdu1_token(void) {
    t1_comm_token(5);
    while(TST_COMM_TOKEN) {
-      if(!(flag_mcp & _TOKEN)) // wait for flag to reset
+      if (!(flag_mcp & _TOKEN)) // wait for flag to reset
          break;
    }
-   if(TST_COMM_TOKEN)
+   if (TST_COMM_TOKEN)
       return(0);
    else
       return(1);

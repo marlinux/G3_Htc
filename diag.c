@@ -47,13 +47,13 @@ HYDRL_FAST      0 // 115 Hydraulics too fast
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void diag_flags(uint8_t flags) {
    wdt_shutdown(); // stop watchdog timer
-   if(flags & DIAG_SYSTEM)
+   if (flags & DIAG_SYSTEM)
       diag_system(); // diagnostics for voltage and a/d converter
-   if(flags & DIAG_SENSOR)
+   if (flags & DIAG_SENSOR)
       diag_sensor(); // run sensor diagostics
-   if(flags & DIAG_SOLENOID)
+   if (flags & DIAG_SOLENOID)
       diag_solenoid(); // run solenoid diagnostics
-   if(flags & DIAG_HYDRL)
+   if (flags & DIAG_HYDRL)
       diag_hydrl(); // run hydraulics diagnostics
    diag_ssword();
    pdu1_out8(_VAR | _WRITE, FLG_DIAG, 0x0F, unib[FLG_DIAG].byte);
@@ -70,12 +70,12 @@ void diag_system(void) {
    SSW_HIGH_BYTE &= ~((1<<A2D_FAIL) | (1<<LOW_VOLTAGE));
    output_x_off(); // turn off both outputs
    // test for low voltage and a/d converter
-   if(ad_read(AD_V_SUPPLY) == 0) { // must be voltage present to get here
+   if (ad_read(AD_V_SUPPLY) == 0) { // must be voltage present to get here
       SSW_HIGH_BYTE |= (1<<A2D_FAIL); // set a/d failed
    } else {
-      if(diag_voltage_gt(AD_V_SUPPLY, TARGET_12V))
+      if (diag_voltage_gt(AD_V_SUPPLY, TARGET_12V))
          SSW_HIGH_BYTE |= (1<<LOW_VOLTAGE); // set low voltage flag
-   //   if(ad_read(AD_V_SUPPLY) < TARGET_12V)
+   //   if (ad_read(AD_V_SUPPLY) < TARGET_12V)
    }
    diag_ssword(); // set/clear fatal error flag in CSWORD
    unib[FLG_DIAG].byte &= ~DIAG_SYSTEM; // clear flag
@@ -92,10 +92,10 @@ uint8_t diag_voltage_gt(uint8_t channel, uint16_t range) {
    t1_delay(5); // delay before testing to let things settle
    t1_task0(5); // length of test
    while(TST_TASK0) {
-      if(ad_read(channel) > range) // if greater then break out
+      if (ad_read(channel) > range) // if greater then break out
          break;
    }
-   if(TST_TASK0) return(0); // if timer is still running then okay
+   if (TST_TASK0) return(0); // if timer is still running then okay
    else return(1); // else !true
 } //  diag_voltage_gt
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -110,10 +110,10 @@ uint8_t diag_voltage_lt(uint8_t channel, uint16_t range) {
    t1_delay(5); // delay before testing to let things settle
    t1_task0(5); // length of test
    while(TST_TASK0) {
-      if(ad_read(channel) < range) // if less than then break out
+      if (ad_read(channel) < range) // if less than then break out
          break;
    }
-   if(TST_TASK0) return(0); // if timer is still running then okay
+   if (TST_TASK0) return(0); // if timer is still running then okay
    else return(1); // else !true
 } //  diag_voltage_lt
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -124,34 +124,36 @@ uint8_t diag_voltage_lt(uint8_t channel, uint16_t range) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void diag_solenoid(void) {
-   SSW_LOW_BYTE &=
-      ~((1<<SOL_HIGH_A) | (1<<SOL_HIGH_B) | (1<<SOL_LOW_A) | (1<<SOL_LOW_B));
+	uint8_t tmp = OCR1A; // save original value of OCR1A
+	OCR1A = 0xF8;
+   SSW_LOW_BYTE &= ~((1<<SOL_HIGH_A) | (1<<SOL_HIGH_B) | (1<<SOL_LOW_A) | (1<<SOL_LOW_B));
    output_x_off(); // turn off both outputs
    // test if solenoid A is present
-   if(diag_voltage_lt(AD_AMP_SOLENOID, AMPS_MIN ))
+   if (diag_voltage_lt(AD_AMP_SOLENOID, AMPS_MIN ))
       SSW_LOW_BYTE |= (1<<SOL_HIGH_A); // solenoid always on (bad trans)
    // test if solenoid B is present
-   if(diag_voltage_lt(AD_AMP_SOLENOID, AMPS_MIN ))
+   if (diag_voltage_lt(AD_AMP_SOLENOID, AMPS_MIN ))
       SSW_LOW_BYTE |= (1<<SOL_HIGH_B); // solenoid always on (bad trans)
    // test if transistor A is working
    output_a_on();
-   if(diag_voltage_gt(AD_AMP_SOLENOID, AMPS_MIN )) {
+   if (diag_voltage_gt(AD_AMP_SOLENOID, AMPS_MIN )) {
       // test solenoid A shorted error flag
-      if(!(SSW_HIGH_BYTE & (1<<SOL_SHORT_A)))
+      if (!(SSW_HIGH_BYTE & (1<<SOL_SHORT_A)))
          // no current flow (solenoid not connected)
          SSW_LOW_BYTE |= (1<<SOL_LOW_A);
    }
    // test if transistor B is working
    output_b_on();
-   if(diag_voltage_gt(AD_AMP_SOLENOID, AMPS_MIN )) {
+   if (diag_voltage_gt(AD_AMP_SOLENOID, AMPS_MIN )) {
       // test solenoid A shorted error flag
-      if(!(SSW_HIGH_BYTE & (1<<SOL_SHORT_B)))
+      if (!(SSW_HIGH_BYTE & (1<<SOL_SHORT_B)))
          // no current flow (solenoid not connected)
          SSW_LOW_BYTE |= (1<<SOL_LOW_B);
    }
    output_x_off(); // insure outputs are off
    diag_ssword(); // set/reset fatal error flag in CSWORD
    unib[FLG_DIAG].byte &= ~DIAG_SOLENOID; // clear flag
+	OCR1A = tmp; // restore original value of OCR1A
 } // diag_solenoid
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: diag_sensor
@@ -166,17 +168,17 @@ void diag_sensor(void) {
    unib[SNR_STAT].byte = 0x07; // set all flags and lower if not true
    t1_delay(10); // 100ms delay to stabilize inputs
    ad_tmp = ad_read(AD_SNR1); // read primary wand sensor
-   if((ad_tmp < 40) || (ad_tmp > 984)) {// is sensor value too low or high
+   if ((ad_tmp < 40) || (ad_tmp > 984)) {// is sensor value too low or high
       unib[SNR_STAT].byte &= ~0x01; // sensor present flag
       SSW_HIGH_BYTE |= (1<<SNR_PW); // primary wand sensor error flag
    }
    ad_tmp = ad_read(AD_SNR2); // read feedback sensor
-   if((ad_tmp < 40) || (ad_tmp > 984)) {// is sensor value too low or high
+   if ((ad_tmp < 40) || (ad_tmp > 984)) {// is sensor value too low or high
       unib[SNR_STAT].byte &= ~0x02; // sensor present flag
       SSW_HIGH_BYTE |= (1<<SNR_FB); // feedback sensor error flag
    }
    ad_tmp = ad_read(AD_SNR3); // read secondrary wand sensor
-   if((ad_tmp < 40) || (ad_tmp > 984)) { // is sensor value too low or high
+   if ((ad_tmp < 40) || (ad_tmp > 984)) { // is sensor value too low or high
       unib[SNR_STAT].byte &= ~0x04; // sensor present flag
       // no error in case 2nd row sensor is
    }
@@ -195,10 +197,10 @@ void diag_sensor(void) {
 void diag_hydrl(void) {
    // test hydraulics on and if reversed plugs
    // if no errors yet then proceed
-   if((!(SSW_LOW_BYTE & 0xF0)) && (!(SSW_HIGH_BYTE))) {
+   if ((!(SSW_LOW_BYTE & 0xF0)) && (!(SSW_HIGH_BYTE))) {
       SSW_LOW_BYTE &= ~((1<<HYDRL_OFF) | (1<<HYDRL_REVERSE));
-      if(diag_motion(0))
-         if(diag_motion(1)) // test for hydraulic response
+      if (diag_motion(0))
+         if (diag_motion(1)) // test for hydraulic response
             SSW_LOW_BYTE |= (1<<HYDRL_OFF);// hydraulics off flag
    }
    output_x_off(); // insure outputs are off
@@ -217,7 +219,7 @@ uint8_t  diag_motion(uint8_t mode) {
    uint8_t uiX, uiY;
    uiX =  sensor_read(AD_SNR2);// read feedback sensor
    t1_task1(150); // set timer for 1.5 secs.
-   if(mode) {
+   if (mode) {
       output_a_on(); // sol A 'On'
    } else {
       output_b_on(); // sol B 'On'
@@ -225,16 +227,16 @@ uint8_t  diag_motion(uint8_t mode) {
    // detect motion and direction
    do {
       uiY =  sensor_read(AD_SNR2);
-      if(uiY > (uiX + 6)) {
-         if(mode) // if sol A 'On'
+      if (uiY > (uiX + 6)) {
+         if (mode) // if sol A 'On'
             break;
          else {
             SSW_LOW_BYTE |= (1<<HYDRL_REVERSE);// hydraulics reversed flag
             break; // correct motion detected
          }
       }
-      if(uiY < (uiX - 6)) {
-         if(mode) { // if sol A 'On'
+      if (uiY < (uiX - 6)) {
+         if (mode) { // if sol A 'On'
             SSW_LOW_BYTE |= (1<<HYDRL_REVERSE);// hydraulics reversed flag
             break; // correct motion detected
          } else
@@ -242,7 +244,7 @@ uint8_t  diag_motion(uint8_t mode) {
       }
    } while(TST_TASK1); // task timer still running?
    output_x_off(); // both sol off
-   if(!TST_TASK1) // did timeout occur?
+   if (!TST_TASK1) // did timeout occur?
       return(1); // no movement detected
    else
       return(0); // movement detected
@@ -257,7 +259,7 @@ uint8_t  diag_motion(uint8_t mode) {
 void diag_ssword(void) {
    // if any critical or fatal errors detected
    // don't include hydraulic fast/slow error
-   if(uniw[FLG_SSW].word & ~((1<<HYDRL_FAST) | (1<<HYDRL_SLOW)))
+   if (uniw[FLG_SSW].word & ~((1<<HYDRL_FAST) | (1<<HYDRL_SLOW)))
       SET_FATAL_ERR; // set flag in flag.csb register
    else
       CLR_FATAL_ERR; // clear flag if no error found

@@ -76,7 +76,7 @@ void e2_write(uint16_t addr, uint16_t data) {
    // read ee byte first to prevent re-writing if same
       EECR |= (1<<EERE); // EECR->EERE=1 (request read cycle)
       while(EECR & (1<<EERE)); // wait for EECR->EEWE to go zero
-      if(EEDR != (char)data) {
+      if (EEDR != (char)data) {
          EEDR = (char)data; // load data into eeprom data reg.
          asm("cli"); // disable interrupts
          EECR |= (1<<EEMWE); // EECR->EEMWE=1 (master write enable bit)
@@ -96,7 +96,7 @@ void e2_write(uint16_t addr, uint16_t data) {
 //: Returns: none (when the timer duration is up)
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void  t1_delay(uint8_t duration) {
-   if(duration) {
+   if (duration) {
       OCIE1A_DISABLE;
       tmr1.delay = duration; // delay amount
       SET_DELAY; // raise delay flag
@@ -112,7 +112,7 @@ void  t1_delay(uint8_t duration) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void t1_wand(uint16_t duration) {
-   if(duration) {
+   if (duration) {
       OCIE1A_DISABLE;
       tmr1.wand_delay = duration; // delay amount
       SET_SGNL_DELAY; // raise output flag
@@ -127,7 +127,7 @@ void t1_wand(uint16_t duration) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void t1_task0(uint8_t duration) {
-   if(duration) {
+   if (duration) {
       OCIE1A_DISABLE;
       tmr1.task0 = duration; // delay amount
       SET_TASK0; // raise task0 flag
@@ -142,7 +142,7 @@ void t1_task0(uint8_t duration) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void t1_task1(uint16_t duration) {
-   if(duration) {
+   if (duration) {
       OCIE1A_DISABLE;
       tmr1.task1 = duration; // delay amount
       SET_TASK1; // raise task1 flag
@@ -157,7 +157,7 @@ void t1_task1(uint16_t duration) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void t1_comm_cab(uint8_t duration) {
-   if(duration) {
+   if (duration) {
       OCIE1A_DISABLE;
       tmr1.comm_cab = duration; // delay amount
       SET_COMM_CAB; // raise output flag
@@ -172,7 +172,7 @@ void t1_comm_cab(uint8_t duration) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void t1_comm_token(uint8_t duration) {
-   if(duration) {
+   if (duration) {
       OCIE1A_DISABLE;
       tmr1.comm_token = duration; // delay amount
       SET_COMM_TOKEN; // raise output flag

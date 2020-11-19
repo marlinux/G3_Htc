@@ -15,6 +15,7 @@ void Snr_Wand_Parameter(void);
 void Snr_Fb_Speed(void);
 void A_Solenoid(uint8_t mode);
 void B_Solenoid(uint8_t mode);
+void vlv_calibrate(void);
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: run_module
 //: Prototype: void run_module(void)
@@ -27,18 +28,19 @@ void B_Solenoid(uint8_t mode);
 void run_module(void) {
    int8_t snr_wd, snr_fb;
    int16_t ctl_position;
-   if(TST_TASK0)
+   if (TST_TASK0) {
       return;
+	}
    // contant cycle time for correct speed calculations
    t1_task0(12); // 12 * 0.01 = 0.12 = 8.333Hz
    // main hitch controlling loop
-   Snr_Wand_Parameter(); // test wand status
+	Snr_Wand_Parameter(); // test wand status
    // test if guidance should be active
-   if(TST_SGNL_STAT) { // if wand active flag set
+   if (TST_SGNL_STAT) { // if wand active flag set
       // scale feedback sensor
       snr_fb = ( sensor_read(AD_SNR2) - SNR_CENTER); // read sensor and make signed
       ctl_position = ((snr_fb * unib[CTL_FDBK].byte) / 100);
-      if(!TST_2ND_SGNL) { // which wand is active
+      if (!TST_2ND_SGNL) { // which wand is active
          snr_wd = (sensor_read(AD_SNR1) - SNR_CENTER) ;
       } else {
          snr_wd = ( sensor_read(AD_SNR3) - SNR_CENTER) ;
@@ -53,17 +55,22 @@ void run_module(void) {
    unib[CTL_POSITION].byte = ctl_position;
    // calculate window value
    unib[CTL_WIN_TMP].byte = ((unib[SNR_FB_SPEED].byte * unib[CTL_WIN_SCF].byte) / 100);
-   if(unib[CTL_WIN_TMP].byte < unib[CTL_WINDOW].byte)
+   if (unib[CTL_WIN_TMP].byte < unib[CTL_WINDOW].byte)
       unib[CTL_WIN_TMP].byte = unib[CTL_WINDOW].byte;
    // do solenoid control analyzes
-   if(ctl_position < ((int8_t)unib[CTL_TARGET].byte - unib[CTL_WIN_TMP].byte))
+   if (ctl_position < ((int8_t)unib[CTL_TARGET].byte - unib[CTL_WIN_TMP].byte)) {
       A_Solenoid(1);
-   else
+	} else {
       A_Solenoid(0);
-   if(ctl_position > ((int8_t)unib[CTL_TARGET].byte + unib[CTL_WIN_TMP].byte))
+	}
+   if (ctl_position > ((int8_t)unib[CTL_TARGET].byte + unib[CTL_WIN_TMP].byte)) {
       B_Solenoid(1);
-   else
+	} else {
       B_Solenoid(0);
+	}
+//	if (!TST_SGNL_STAT) {
+//		vlv_calibrate();
+//	}
 } // run_module
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: sensor_scale_factor
@@ -75,7 +82,7 @@ void run_module(void) {
 void sensor_scale_factor(uint8_t sensor) {
    snr.scf[sensor] =
    (((uniw[SNR_MAX + sensor].word - uniw[SNR_MIN + sensor].word) * 64) / SNR_RANGE);
-   if(snr.scf[sensor] % SNR_RANGE)
+   if (snr.scf[sensor] % SNR_RANGE)
       snr.scf[sensor]++;
 } // sensor_scale_factor
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -100,7 +107,7 @@ uint8_t sensor_read(uint8_t sensor) {
    // read a/d converter on selected sensor channel
    snr_value16 = uniw[SNR_RAW + sensor].word = ad_read(sensor);// get reading
    // test if sensor are connected
-   if((snr_value16 < 40) || (snr_value16 > 984)) { // is sensor value too low or high
+   if ((snr_value16 < 40) || (snr_value16 > 984)) { // is sensor value too low or high
       SSW_HIGH_BYTE |= ((1<<SNR_PW) << sensor); // set correct sensor error flag
       CSW_HIGH_BYTE |= _FATAL_ERR; // set fatal error flag
    }
@@ -111,11 +118,11 @@ uint8_t sensor_read(uint8_t sensor) {
    snr_value16 = ((snr_value16 * 64) / snr.scf[sensor]);
    snr_value8 = snr_value16;
    // test if sensor value needs to be negated
-   if(shifted & unib[SNR_POLARITY].byte)
+   if (shifted & unib[SNR_POLARITY].byte)
       snr_value8 = (SNR_RANGE - snr_value8);
    snr_value8 += OFFSET;
    unib[SNR_READING + sensor].byte = snr_value8; // save with offset added
-   if(sensor != AD_SNR2) // if ~ feedback sensor then average else test speed
+   if (sensor != AD_SNR2) // if ~ feedback sensor then average else test speed
       snr_value8 =  sensor_average(snr_value8);
    else
       Snr_Fb_Speed(); // compute speed of sensor
@@ -135,21 +142,21 @@ uint8_t sensor_read(uint8_t sensor) {
 uint16_t sensor_min_max(uint8_t sensor, uint16_t snr_value) {
    uint8_t shift;
    // test against min and max values
-   if(snr_value <= 512) {
-      if(snr_value < uniw[SNR_MIN + sensor].word) { // test min
+   if (snr_value <= 512) {
+      if (snr_value < uniw[SNR_MIN + sensor].word) { // test min
          uniw[SNR_MIN + sensor].word = snr_value; // sub 2 and save
          sensor_scale_factor(sensor); // rescale sensor
       }
-      if(snr_value < (uniw[SNR_MIN + sensor].word + 5)) {
+      if (snr_value < (uniw[SNR_MIN + sensor].word + 5)) {
          shift = (1<<sensor); // shift to sensor position
          flag.min_touch |= shift; // raise flag
       }
    } else {
-      if(snr_value > uniw[SNR_MAX + sensor].word) { // test max
+      if (snr_value > uniw[SNR_MAX + sensor].word) { // test max
          uniw[SNR_MAX + sensor].word = snr_value; // add 2 and save
          sensor_scale_factor(sensor); // rescale sensor
       }
-      if(snr_value > (uniw[SNR_MAX + sensor].word - 5)) {
+      if (snr_value > (uniw[SNR_MAX + sensor].word - 5)) {
          shift = (1<<sensor); // shift to sensor position
          flag.max_touch |= shift; // raise flag
       }
@@ -166,16 +173,16 @@ uint16_t sensor_min_max(uint8_t sensor, uint16_t snr_value) {
 void Snr_Wand_Parameter(void) {
    static uint8_t carbon_copy, toggle_temp, shifter;
    // test mercury switch status
-   if(unib[CTL_MERCURY_OPT].byte) {
+   if (unib[CTL_MERCURY_OPT].byte) {
       SET_MERCURY; // reset flag bit
    } else {
-      if(PIND & (1<<PD2))  // read input of mercury switch
+      if (PIND & (1<<PD2))  // read input of mercury switch
          CLR_MERCURY; // reset flag bit
       else
          SET_MERCURY; // set flag bit
    }
    // test if any bits have changed from last lap
-   if(carbon_copy != (uniw[FLG_CSW].byte[0] &
+   if (carbon_copy != (uniw[FLG_CSW].byte[0] &
             (_SGNL_CTL | _2ND_SGNL | _MERCURY))) {
       SET_SGNL_CHANGE; // set flag that wand status has changed
       t1_wand(uniw[CTL_SGNL_DELAY].word);
@@ -183,10 +190,10 @@ void Snr_Wand_Parameter(void) {
             (_SGNL_CTL | _2ND_SGNL | _MERCURY));
    }
    // test if unit should toggle from one wand to the other
-   if(unib[SNR_STAT].byte & 0x04) { // test if second wand is present
-      if(TST_MERCURY ^ (toggle_temp & _MERCURY)) {
-         if(++shifter > 24) {
-            if(!TST_MERCURY) { // if mercury switch is low then toggle 2nd wand
+   if (unib[SNR_STAT].byte & 0x04) { // test if second wand is present
+      if (TST_MERCURY ^ (toggle_temp & _MERCURY)) {
+         if (++shifter > 24) {
+            if (!TST_MERCURY) { // if mercury switch is low then toggle 2nd wand
                TGL_2ND_SGNL;
                pdu1_out16((_VAR | _WRITE | _SIZE16), FLG_CSW,
                      0x0002, uniw[FLG_CSW].word);
@@ -197,7 +204,7 @@ void Snr_Wand_Parameter(void) {
       } else
          shifter = 0;
    }
-   if(TST_SGNL_CTL && TST_MERCURY && !(TST_SGNL_DELAY)) {
+   if (TST_SGNL_CTL && TST_MERCURY && !(TST_SGNL_DELAY)) {
       SET_SGNL_STAT; // turn wand status on
    } else {
       CLR_SGNL_STAT; // turn wand status off
@@ -216,7 +223,7 @@ void Snr_Wand_Parameter(void) {
 uint8_t sensor_average(uint8_t snr_value) {
    static uint8_t old_value;
    int16_t temp;
-   if(TST_SGNL_CHANGE) {
+   if (TST_SGNL_CHANGE) {
       CLR_SGNL_CHANGE;
       old_value = snr_value;
       return snr_value;
@@ -238,7 +245,7 @@ void Snr_Fb_Speed(void) {
    unib[SNR_FB_SPEED].byte = (unib[SNR_READING + AD_SNR2].byte - unib[SNR_OLD + AD_SNR2].byte);
    unib[SNR_OLD + AD_SNR2].byte = unib[SNR_READING + AD_SNR2].byte;
    // always positive value
-   if((int8_t)unib[SNR_FB_SPEED].byte < 0) // test if negative
+   if ((int8_t)unib[SNR_FB_SPEED].byte < 0) // test if negative
       unib[SNR_FB_SPEED].byte = ~unib[SNR_FB_SPEED].byte;
 } // Snr_Fb_Speed
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -258,10 +265,10 @@ void sensor_calibrate(void) {
    uint8_t tmp;
    uint16_t snr_tmp;
    wdt_shutdown();
-   if(!(unib[SNR_CALIB_RQ].byte & 0x40)) { // test if first pass
+   if (!(unib[SNR_CALIB_RQ].byte & 0x40)) { // test if first pass
       output_x_off(); // turn both outputs off if on
       diag_sensor(); // run sensor diagnostics first
-      if(unib[SNR_STAT].byte & unib[SNR_CALIB_RQ].byte) {
+      if (unib[SNR_STAT].byte & unib[SNR_CALIB_RQ].byte) {
          sensor = 0;
          tmp = 1;
          while(!(tmp & unib[SNR_CALIB_RQ].byte)) {
@@ -276,15 +283,15 @@ void sensor_calibrate(void) {
    } else {
       snr_tmp = uniw[SNR_RAW + sensor].word = ad_read(sensor);
       // compare against min and max values
-      if(snr_tmp > uniw[SNR_MAX + sensor].word) { // test max
+      if (snr_tmp > uniw[SNR_MAX + sensor].word) { // test max
          uniw[SNR_MAX + sensor].word = snr_tmp; // set new value
           sensor_scale_factor(sensor);
       }
-      if(snr_tmp < uniw[SNR_MIN + sensor].word) { // test min
+      if (snr_tmp < uniw[SNR_MIN + sensor].word) { // test min
          uniw[SNR_MIN + sensor].word = snr_tmp; // set new value
           sensor_scale_factor(sensor);
       }
-      if((uniw[SNR_MAX + sensor].word - uniw[SNR_MIN + sensor].word) > 180)
+      if ((uniw[SNR_MAX + sensor].word - uniw[SNR_MIN + sensor].word) > 180)
          unib[SNR_CALIB].byte |= (unib[SNR_CALIB_RQ].byte & 0x07);
    }
    ini_wdt(5); // set watchdog timer for 0.49s timeout
@@ -299,22 +306,22 @@ void sensor_calibrate(void) {
 void A_Solenoid(uint8_t mode) {
    static uint8_t cycle_counter, start_position;
    uint8_t current_position;
-   if(mode) {
-      if(!(portd_shdw & (1<<_SOL_A))) { // drv A not ON yet?
+   if (mode) {
+      if (!(portd_shdw & (1<<_SOL_A))) { // drv A not ON yet?
 
 			OCR1A = 160;
 
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
          output_a_on(); // solenoid A on routine
       } else {
-         if(cycle_counter & 0x80) { // test if counter is < 128
+         if (cycle_counter & 0x80) { // test if counter is < 128
             //output_a_off(); // turn off solenoid A
             return; // then exit routine
          }
-         if(++cycle_counter == 8) { // 1 sec.
-            if(start_position < (SNR_RANGE - 6)) {
+         if (++cycle_counter == 8) { // 1 sec.
+            if (start_position < (SNR_RANGE - 6)) {
                current_position = unib[SNR_READING + AD_SNR2].byte;
-               if(current_position > (start_position + 4)) {
+               if (current_position > (start_position + 4)) {
                   CLR_MOTION; // motion detected
                   SSW_LOW_BYTE &= ~(1<<HYDRL_REVERSE); // clear reversed hydraulics
                   SSW_LOW_BYTE &= ~(1<<HYDRL_OFF); // clear hydraulics off
@@ -338,22 +345,22 @@ void A_Solenoid(uint8_t mode) {
 void B_Solenoid(uint8_t mode) {
    static uint8_t cycle_counter, start_position;
    uint8_t current_position;
-   if(mode) {
-      if(!(portd_shdw & (1<<_SOL_B))) { // drv B not ON yet?
+   if (mode) {
+      if (!(portd_shdw & (1<<_SOL_B))) { // drv B not ON yet?
 
 			OCR1A = 100;
 
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
          output_b_on(); // solenoid B on routine
       } else {
-         if(cycle_counter & 0x80) { // test if counter is < 128
+         if (cycle_counter & 0x80) { // test if counter is < 128
             //output_b_off(); // turn off solenoid B
             return; // then exit routine
          }
-         if(++cycle_counter == 8) { // 1 sec.
-            if(start_position > (0 + 6)) {
+         if (++cycle_counter == 8) { // 1 sec.
+            if (start_position > (0 + 6)) {
                current_position = unib[SNR_READING + AD_SNR2].byte;
-               if(current_position < (start_position - 4)) {
+               if (current_position < (start_position - 4)) {
                   CLR_MOTION; // motion detected
                   SSW_LOW_BYTE &= ~(1<<HYDRL_REVERSE); // clear reversed hydraulics
                   SSW_LOW_BYTE &= ~(1<<HYDRL_OFF); // clear hydraulics off
@@ -439,3 +446,10 @@ void output_x_off(void) {
    portd_shdw &= ~((1<<_SOL_A)|(1<<_SOL_B)|(1<<_SOL_C)|(1<<_SOL_D));
 } // output_x_off
 
+
+
+void vlv_calibrate(void) {
+	if (!(TST_MOTION) | !(1<<_SOL_A) | !(1<<_SOL_B))  {
+		DEBUG_FLASHER;
+	}
+}

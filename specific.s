@@ -17,7 +17,7 @@
 .global _firmware_version_
 _firmware_version_:
 .byte 2 ; major version
-.byte 0 ; minor revision
+.byte 2 ; minor revision
 .byte 0x08 ; high byte
 .byte 0xdf ; low byte
 ; number of days from jan 01, 2000.

@@ -34,12 +34,12 @@ ISR (INT0_vect) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ISR (INT1_vect) {
    uint8_t tmp = spi_mcp_read(CANINTF); // read interrupt source register
-   if(tmp & ERRIF) {  // test for communication errors
+   if (tmp & ERRIF) {  // test for communication errors
       mcp_error_handler();
    }
-   if(tmp & (RX1IF | RX0IF)) { // RX buffer full
+   if (tmp & (RX1IF | RX0IF)) { // RX buffer full
       mcp_get_msg(tmp); // read mcp rx buffer and place in mcu buffer
-      if(flag_mcp & 0x0F) {
+      if (flag_mcp & 0x0F) {
          flag.int1 = 1; // raise flag
          pdu1_in(); // locate canbus message initialize pointer
          flag.int1 = 0; // clear flag
@@ -72,27 +72,27 @@ ISR (TIMER1_COMPA_vect) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ISR (TIMER1_COMPB_vect) {
    static uint8_t portd_image, j;
-   if(TST_DELAY) // delay bit high?
-      if(!(--tmr1.delay)) // is equal?
+   if (TST_DELAY) // delay bit high?
+      if (!(--tmr1.delay)) // is equal?
          CLR_DELAY; // lower flag
-   if(TST_TASK0) // used to time tasks
-      if(!(--tmr1.task0)) // task0 counter/timer
+   if (TST_TASK0) // used to time tasks
+      if (!(--tmr1.task0)) // task0 counter/timer
          CLR_TASK0; // lower flag
-   if(TST_TASK1) // used to time tasks
-      if(!(--tmr1.task1)) // task1 counter/timer
+   if (TST_TASK1) // used to time tasks
+      if (!(--tmr1.task1)) // task1 counter/timer
          CLR_TASK1; // lower flag
-   if(TST_SGNL_DELAY) // wand delay timer
-      if(!(--tmr1.wand_delay)) // time out done?
+   if (TST_SGNL_DELAY) // wand delay timer
+      if (!(--tmr1.wand_delay)) // time out done?
          CLR_SGNL_DELAY; // lower flag
-   if(TST_COMM_CAB) { // watchdog timer for the cab module
-      if(!(--tmr1.comm_cab)) { // time out done?
+   if (TST_COMM_CAB) { // watchdog timer for the cab module
+      if (!(--tmr1.comm_cab)) { // time out done?
          CLR_COMM_CAB; // lower flag
       }
    }
-   if(TST_COMMS) { // comms flag set by cab to start communication
-      if(!(--tmr1.comm_out)) { // can bus pulse timer?
+   if (TST_COMMS) { // comms flag set by cab to start communication
+      if (!(--tmr1.comm_out)) { // can bus pulse timer?
          tmr1.comm_out = 10; // set next timeout (20 * 0.01 = .2 or 5Hz)
-         if(++j & 0x01) { // one msg one pass the next msg the next pass
+         if (++j & 0x01) { // one msg one pass the next msg the next pass
             pdu1_out16( _VAR | _WRITE | _SIZE16, FLG_CSW,
                   _CSW_HTC_MASK, uniw[FLG_CSW].word);
          } else {
@@ -102,15 +102,15 @@ ISR (TIMER1_COMPB_vect) {
       }
    }
    // time outputs to save solenoids or battery power
-   if((PORTD & 0xC3) != portd_image) {
+   if ((PORTD & 0xC3) != portd_image) {
 	   portd_image = (PORTD & 0xC3); // save image of portd
 	   tmr1.output = 12000; // delay amount
 	   SET_OUTPUT; // raise output flag
    }
-   if(TST_OUTPUT) { // time expected output duration
-	   if(!(--tmr1.output)) { // time out done?
+   if (TST_OUTPUT) { // time expected output duration
+	   if (!(--tmr1.output)) { // time out done?
 		   CLR_OUTPUT; // lower flag
-		   if(portd_shdw & ((1<<_SOL_A)|(1<<_SOL_B)))
+		   if (portd_shdw & ((1<<_SOL_A)|(1<<_SOL_B)))
 		   portd_shdw |= 0x10;
 		   output_x_off(); // turn both solenoids off
 	   }
@@ -125,11 +125,11 @@ ISR (TIMER1_COMPB_vect) {
 //: Returns: none
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ISR (ANA_COMP_vect) {
-   if(PORTD & (1<<_SOL_A)) { // test if solenoid A is active
+   if (PORTD & (1<<_SOL_A)) { // test if solenoid A is active
       output_a_off(); // output off function
       SSW_HIGH_BYTE |= (1<<SOL_SHORT_A); // raise solenoid A shorted error flag
    }
-   if(PORTD & (1<<_SOL_B)) { // test if solenoid B is active
+   if (PORTD & (1<<_SOL_B)) { // test if solenoid B is active
       output_b_off(); // output off function
       SSW_HIGH_BYTE |= (1<<SOL_SHORT_B); // raise solenoid B shorted error flag
    }
