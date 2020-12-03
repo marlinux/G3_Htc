@@ -126,11 +126,11 @@ ISR (TIMER1_COMPB_vect) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ISR (ANA_COMP_vect) {
    if (PORTD & (1<<_SOL_A)) { // test if solenoid A is active
-      output_a_off(); // output off function
+      output_x_off(); // output off function
       SSW_HIGH_BYTE |= (1<<SOL_SHORT_A); // raise solenoid A shorted error flag
    }
    if (PORTD & (1<<_SOL_B)) { // test if solenoid B is active
-      output_b_off(); // output off function
+      output_x_off(); // output off function
       SSW_HIGH_BYTE |= (1<<SOL_SHORT_B); // raise solenoid B shorted error flag
    }
    SET_FATAL_ERR; // set the fatal error flag

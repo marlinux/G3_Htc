@@ -116,6 +116,7 @@ volatile struct {
    uint16_t output; // timer for solenoid outputs
 } tmr1 ;
 volatile uint8_t portd_shdw; // copy of port d
+volatile uint8_t vlv_threshold_enable; // flags to control when vlv_threshold() is run
 // ---- main ----
 void debug_flasher(void);
 void ini_device(void);
@@ -216,6 +217,7 @@ extern volatile struct {
    uint16_t output; // timer for solenoid outputs
 } tmr1 ;
 extern volatile uint8_t portd_shdw; // copy of port d
+extern volatile uint8_t vlv_threshold_enable; // flags to control when vlv_threshold() is run
 // ---- main ----
 extern void debug_flasher(void);
 extern void ini_device(void);

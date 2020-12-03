@@ -15,7 +15,9 @@ void Snr_Wand_Parameter(void);
 void Snr_Fb_Speed(void);
 void A_Solenoid(uint8_t mode);
 void B_Solenoid(uint8_t mode);
-void vlv_calibrate(void);
+void vlv_threshold(void);
+uint8_t detect_motion(void);
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: run_module
 //: Prototype: void run_module(void)
@@ -31,13 +33,15 @@ void run_module(void) {
    if (TST_TASK0) {
       return;
 	}
-   // contant cycle time for correct speed calculations
+   // constant cycle time for correct speed calculations
    t1_task0(12); // 12 * 0.01 = 0.12 = 8.333Hz
    // main hitch controlling loop
 	Snr_Wand_Parameter(); // test wand status
    // test if guidance should be active
    if (TST_SGNL_STAT) { // if wand active flag set
-      // scale feedback sensor
+		vlv_threshold_enable = 1;
+//		pwm_enable = 1;
+	   // scale feedback sensor
       snr_fb = ( sensor_read(AD_SNR2) - SNR_CENTER); // read sensor and make signed
       ctl_position = ((snr_fb * unib[CTL_FDBK].byte) / 100);
       if (!TST_2ND_SGNL) { // which wand is active
@@ -48,15 +52,16 @@ void run_module(void) {
       ctl_position += snr_wd;
       unib[CTL_TARGET].byte = unib[CTL_BIAS].byte;
    } else {
-      ctl_position = snr_fb = ( sensor_read(AD_SNR2) - SNR_CENTER);
-      unib[CTL_TARGET].byte = 0;
+      ctl_position = snr_fb = (sensor_read(AD_SNR2) - SNR_CENTER);
+      unib[CTL_TARGET].byte = 0; // wands off feedback sensor target is zero
    }
    ctl_position /= 2; // computed position
    unib[CTL_POSITION].byte = ctl_position;
    // calculate window value
    unib[CTL_WIN_TMP].byte = ((unib[SNR_FB_SPEED].byte * unib[CTL_WIN_SCF].byte) / 100);
-   if (unib[CTL_WIN_TMP].byte < unib[CTL_WINDOW].byte)
+   if (unib[CTL_WIN_TMP].byte < unib[CTL_WINDOW].byte) {
       unib[CTL_WIN_TMP].byte = unib[CTL_WINDOW].byte;
+	}
    // do solenoid control analyzes
    if (ctl_position < ((int8_t)unib[CTL_TARGET].byte - unib[CTL_WIN_TMP].byte)) {
       A_Solenoid(1);
@@ -68,9 +73,17 @@ void run_module(void) {
 	} else {
       B_Solenoid(0);
 	}
-//	if (!TST_SGNL_STAT) {
-//		vlv_calibrate();
-//	}
+	//------------------------------------------------------------
+
+	if (!TST_SGNL_STAT) {
+		if (vlv_threshold_enable) {
+			if (!(portd_shdw & 0xC0)) {
+				vlv_threshold(); // run function to find open/closed threshold on PWM valve
+				vlv_threshold_enable = 0;
+			}
+		}
+	}
+
 } // run_module
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: sensor_scale_factor
@@ -217,7 +230,7 @@ void Snr_Wand_Parameter(void) {
 //: Arg1: sensor value
 //: Returns: averaged value
 //: Notes:
-//:   if new sensor is averaged then the averageing array is filled w/ the
+//:   if new sensor is averaged then the averaging array is filled w/ the
 //:   new value otherwise normal averaging continues
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 uint8_t sensor_average(uint8_t snr_value) {
@@ -309,8 +322,12 @@ void A_Solenoid(uint8_t mode) {
    if (mode) {
       if (!(portd_shdw & (1<<_SOL_A))) { // drv A not ON yet?
 
-			OCR1A = 160;
-
+			if (unib[VLV_A_OPEN].byte == 0) {
+				OCR1A = 100;
+			} else {
+				OCR1A = unib[VLV_A_OPEN].byte + 15;
+			}
+			
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
          output_a_on(); // solenoid A on routine
       } else {
@@ -332,7 +349,7 @@ void A_Solenoid(uint8_t mode) {
          }
       }
    } else {
-      output_a_off();
+      output_x_off();
    }
 } // A_Solenoid
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -346,10 +363,12 @@ void B_Solenoid(uint8_t mode) {
    static uint8_t cycle_counter, start_position;
    uint8_t current_position;
    if (mode) {
-      if (!(portd_shdw & (1<<_SOL_B))) { // drv B not ON yet?
-
-			OCR1A = 100;
-
+		if (!(portd_shdw & (1<<_SOL_B))) { // drv B not ON yet?
+			if (unib[VLV_B_OPEN].byte == 0) {
+				OCR1A = 100;
+			} else {
+				OCR1A = unib[VLV_A_OPEN].byte + 15;
+			}
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
          output_b_on(); // solenoid B on routine
       } else {
@@ -423,7 +442,7 @@ void output_b_on(void) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //: Function: output_b_off
 //: Prototype: void output_b_off(void)
-//: Description: turns off output a
+//: Description: turns off output b
 //: Arg1: none
 //: Returns: none
 //: Notes:
@@ -447,9 +466,51 @@ void output_x_off(void) {
 } // output_x_off
 
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void vlv_threshold(void) {
+	output_x_off(); // insure both solenoids are off
+	t1_task0(50); // one second
+	while (TST_TASK0) {nop();} // delay to let the hydraulics settle
+	OCR1A = 40;
+	output_a_on();
+	do {
+		OCR1A = OCR1A + 5;
+	} while (!(detect_motion()));
+	unib[VLV_A_OPEN].byte = OCR1A;
+	//-----------------------------------------
+	output_x_off(); // insure both solenoids are off
+	t1_task0(50); // one second
+	while (TST_TASK0) {nop();} // delay to let the hydraulics settle
+	OCR1A = 40;
+	output_b_on();
+	do {
+		OCR1A = OCR1A + 5;
+	} while (!(detect_motion()));
+	unib[VLV_B_OPEN].byte = OCR1A;
+	output_x_off();
 
-void vlv_calibrate(void) {
-	if (!(TST_MOTION) | !(1<<_SOL_A) | !(1<<_SOL_B))  {
-		DEBUG_FLASHER;
+//	FLASH_OFF;
+//	t1_task0(200); // one second
+//	while (TST_TASK0) {nop();} // delay to let the hydraulics settle
+//	FLASH_ON;
+}
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+uint8_t detect_motion(void) {
+	uint16_t start, reading;
+	start = ad_read(AD_SNR2); // read feedback sensor for start point
+	t1_task0(75); // delay .5 of a second.
+	while (TST_TASK0) nop();
+	reading = ad_read(AD_SNR2); // read feedback sensor for start point
+	if (reading < (start - 2)) {
+		return(1);
 	}
+	if (reading > (start + 2)) {
+		return(1);
+	}
+	return(0);
 }

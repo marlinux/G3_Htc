@@ -25,6 +25,8 @@
 int main(void) {
    reset(); // run reset function
 //   ini_wdt(5); // set watchdog timer for 0.49s timeout
+	CLR_SGNL_STAT;
+	vlv_threshold_enable = 1;
    while(1) {
       while(TST_COMM_CAB) { // infinite loop
          wdr(); // clear watchdog timer
@@ -152,7 +154,7 @@ void ini_canbus(void) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void ini_t1(void) {
    TCCR1B = 0x00; //stop timer
-   OCR1A = 0xF0; // load register 1A controls PWM
+   OCR1A = 0xF8; // load register 1A controls PWM
    OCR1B = 0x1388; // load register 1B controls delay timing
    TCCR1A = 0x85; // configure bits for PWM operation
    TCCR1B = 0x0C; // start Timer, frequency = 8MHz clear
