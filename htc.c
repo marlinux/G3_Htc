@@ -154,7 +154,7 @@ void ini_canbus(void) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void ini_t1(void) {
    TCCR1B = 0x00; //stop timer
-   OCR1A = 0xF8; // load register 1A controls PWM
+   OCR1A = 0xCC; // load register 1A controls PWM (204)
    OCR1B = 0x1388; // load register 1B controls delay timing
    TCCR1A = 0x85; // configure bits for PWM operation
    TCCR1B = 0x0C; // start Timer, frequency = 8MHz clear

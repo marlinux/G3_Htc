@@ -125,7 +125,7 @@ uint8_t diag_voltage_lt(uint8_t channel, uint16_t range) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void diag_solenoid(void) {
 	uint8_t tmp = OCR1A; // save original value of OCR1A
-	OCR1A = 0xF8;
+	OCR1A = 0xFF;
    SSW_LOW_BYTE &= ~((1<<SOL_HIGH_A) | (1<<SOL_HIGH_B) | (1<<SOL_LOW_A) | (1<<SOL_LOW_B));
    output_x_off(); // turn off both outputs
    // test if solenoid A is present
@@ -216,7 +216,9 @@ void diag_hydrl(void) {
 //:          0 if movement was detected
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 uint8_t  diag_motion(uint8_t mode) {
-   uint8_t uiX, uiY;
+   uint8_t uiX, uiY, ocr1a_tmp;
+	ocr1a_tmp = OCR1A; // save value on entry
+	OCR1A = 204;
    uiX =  sensor_read(AD_SNR2);// read feedback sensor
    t1_task1(150); // set timer for 1.5 secs.
    if (mode) {
@@ -244,6 +246,7 @@ uint8_t  diag_motion(uint8_t mode) {
       }
    } while(TST_TASK1); // task timer still running?
    output_x_off(); // both sol off
+	OCR1A = ocr1a_tmp; // restore OCR1A value from entry
    if (!TST_TASK1) // did timeout occur?
       return(1); // no movement detected
    else

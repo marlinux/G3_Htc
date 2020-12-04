@@ -64,11 +64,19 @@ void run_module(void) {
 	}
    // do solenoid control analyzes
    if (ctl_position < ((int8_t)unib[CTL_TARGET].byte - unib[CTL_WIN_TMP].byte)) {
+		
+		ctl_position = (ctl_position * 10 / 7); // scale
+
+		OCR1A = ((~(ctl_position)) + unib[VLV_A_OPEN].byte);
       A_Solenoid(1);
 	} else {
       A_Solenoid(0);
 	}
    if (ctl_position > ((int8_t)unib[CTL_TARGET].byte + unib[CTL_WIN_TMP].byte)) {
+		
+		ctl_position = (ctl_position * 10 / 7); // scale
+		
+		OCR1A = ((ctl_position) + unib[VLV_B_OPEN].byte);
       B_Solenoid(1);
 	} else {
       B_Solenoid(0);
@@ -275,9 +283,11 @@ void Snr_Fb_Speed(void) {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void sensor_calibrate(void) {
    static uint8_t sensor;
-   uint8_t tmp;
+   uint8_t tmp, ocr1a_tmp;
    uint16_t snr_tmp;
-   wdt_shutdown();
+	wdt_shutdown();
+	ocr1a_tmp = OCR1A; // store OCR1A value on entry
+	OCR1A = 204;
    if (!(unib[SNR_CALIB_RQ].byte & 0x40)) { // test if first pass
       output_x_off(); // turn both outputs off if on
       diag_sensor(); // run sensor diagnostics first
@@ -307,6 +317,7 @@ void sensor_calibrate(void) {
       if ((uniw[SNR_MAX + sensor].word - uniw[SNR_MIN + sensor].word) > 180)
          unib[SNR_CALIB].byte |= (unib[SNR_CALIB_RQ].byte & 0x07);
    }
+	OCR1A = ocr1a_tmp; // restore OCR1A value on entry
    ini_wdt(5); // set watchdog timer for 0.49s timeout
 } //  sensor_calibrate
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -322,10 +333,8 @@ void A_Solenoid(uint8_t mode) {
    if (mode) {
       if (!(portd_shdw & (1<<_SOL_A))) { // drv A not ON yet?
 
-			if (unib[VLV_A_OPEN].byte == 0) {
-				OCR1A = 100;
-			} else {
-				OCR1A = unib[VLV_A_OPEN].byte + 15;
+			if (OCR1A < unib[VLV_A_OPEN].byte) {
+				OCR1A = (unib[VLV_A_OPEN].byte + 10);
 			}
 			
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
@@ -364,11 +373,11 @@ void B_Solenoid(uint8_t mode) {
    uint8_t current_position;
    if (mode) {
 		if (!(portd_shdw & (1<<_SOL_B))) { // drv B not ON yet?
-			if (unib[VLV_B_OPEN].byte == 0) {
-				OCR1A = 100;
-			} else {
-				OCR1A = unib[VLV_A_OPEN].byte + 15;
+
+			if (OCR1A < unib[VLV_B_OPEN].byte) {
+				OCR1A = (unib[VLV_B_OPEN].byte + 10);
 			}
+
          start_position = unib[SNR_OLD].byte = unib[SNR_READING + AD_SNR2].byte;
          output_b_on(); // solenoid B on routine
       } else {
